@@ -102,6 +102,34 @@ def test_valid_retain_config_succeeds():
     assert config.retain_chunk_size == 3000
 
 
+def test_strict_schema_flags_default_to_false(monkeypatch):
+    """Strict schema enforcement is opt-in to preserve existing provider behavior."""
+    from hindsight_api.config import HindsightConfig
+
+    monkeypatch.delenv("HINDSIGHT_API_RETAIN_STRICT_SCHEMA", raising=False)
+    monkeypatch.delenv("HINDSIGHT_API_CONSOLIDATION_STRICT_SCHEMA", raising=False)
+    monkeypatch.setenv("HINDSIGHT_API_LLM_PROVIDER", "mock")
+
+    config = HindsightConfig.from_env()
+
+    assert config.retain_strict_schema is False
+    assert config.consolidation_strict_schema is False
+
+
+def test_strict_schema_flags_load_from_env(monkeypatch):
+    """Env toggles enable strict provider JSON schema enforcement for structured calls."""
+    from hindsight_api.config import HindsightConfig
+
+    monkeypatch.setenv("HINDSIGHT_API_RETAIN_STRICT_SCHEMA", "true")
+    monkeypatch.setenv("HINDSIGHT_API_CONSOLIDATION_STRICT_SCHEMA", "yes")
+    monkeypatch.setenv("HINDSIGHT_API_LLM_PROVIDER", "mock")
+
+    config = HindsightConfig.from_env()
+
+    assert config.retain_strict_schema is True
+    assert config.consolidation_strict_schema is True
+
+
 def test_log_config_masks_database_urls(caplog):
     """Config startup logs must not expose database credentials."""
     from hindsight_api.config import HindsightConfig

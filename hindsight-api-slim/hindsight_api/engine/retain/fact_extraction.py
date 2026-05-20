@@ -1106,6 +1106,7 @@ async def _extract_facts_from_chunk(
             extraction_response_json, call_usage = await llm_config.call(
                 messages=[{"role": "system", "content": prompt}, {"role": "user", "content": user_message}],
                 response_format=response_schema,
+                strict_schema=config.retain_strict_schema,
                 scope="retain_extract_facts",
                 temperature=0.1,
                 max_completion_tokens=config.retain_max_completion_tokens,

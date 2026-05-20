@@ -1301,6 +1301,7 @@ async def _consolidate_batch_with_llm(
             call_kwargs: dict[str, Any] = {
                 "messages": [{"role": "user", "content": prompt}],
                 "response_format": response_model,
+                "strict_schema": config.consolidation_strict_schema,
                 "scope": "consolidation",
             }
             if inner_max_retries is not None:

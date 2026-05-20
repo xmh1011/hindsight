@@ -24,6 +24,7 @@ def _make_config(llm_max_retries: int = 3, retain_llm_max_retries: int | None = 
     cfg.retain_llm_max_backoff = None
     cfg.llm_max_backoff = 0.0
     cfg.retain_max_completion_tokens = 8192
+    cfg.retain_strict_schema = False
     cfg.retain_extraction_mode = "concise"
     cfg.retain_extract_causal_links = False
     cfg.retain_mission = None
@@ -142,6 +143,33 @@ async def test_retain_llm_max_retries_overrides_global():
 
 
 @pytest.mark.asyncio
+async def test_retain_strict_schema_threads_to_llm_call():
+    """retain_strict_schema enables provider-enforced JSON schema for fact extraction."""
+    from hindsight_api.engine.retain.fact_extraction import _extract_facts_from_chunk
+
+    config = _make_config(llm_max_retries=1)
+    config.retain_strict_schema = True
+    llm_config = _make_llm_config(mock_response={"facts": []})
+
+    with patch(
+        "hindsight_api.engine.retain.fact_extraction._build_extraction_prompt_and_schema",
+        return_value=("system prompt", MagicMock()),
+    ):
+        await _extract_facts_from_chunk(
+            chunk="Alice visited Paris in 2023.",
+            chunk_index=0,
+            total_chunks=1,
+            event_date=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            context="travel notes",
+            llm_config=llm_config,
+            config=config,
+            agent_name="test-agent",
+        )
+
+    assert llm_config.call.call_args.kwargs["strict_schema"] is True
+
+
+@pytest.mark.asyncio
 async def test_none_event_date_with_empty_facts_no_crash():
     """
     When event_date is None and the LLM returns an empty facts list,
@@ -184,16 +212,18 @@ async def test_none_event_date_with_valid_facts_no_crash():
 
     config = _make_config(llm_max_retries=1)
 
-    llm_config = _make_llm_config(mock_response={
-        "facts": [
-            {
-                "what": "Alice visited Paris",
-                "when": "2023",
-                "who": "Alice",
-                "why": "vacation",
-            }
-        ]
-    })
+    llm_config = _make_llm_config(
+        mock_response={
+            "facts": [
+                {
+                    "what": "Alice visited Paris",
+                    "when": "2023",
+                    "who": "Alice",
+                    "why": "vacation",
+                }
+            ]
+        }
+    )
 
     with patch(
         "hindsight_api.engine.retain.fact_extraction._build_extraction_prompt_and_schema",
